@@ -19,18 +19,21 @@ class FPSGRAVITYSHOOTERCPP_API ACPPPlayerController : public APlayerController
 public:
 	ACPPPlayerController();
 
-private:
 	UFUNCTION()
-		void OpenInventory();
+	void RefreshInventory();
+
+protected:
+	UFUNCTION()
+	void OpenInventory();
 
 	virtual void SetupInputComponent() override;
 
 	UPROPERTY()
-		bool bIsInInventory = true;
+	bool bIsInInventory = true;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Inventory")
-		TSubclassOf<UCPPMainInvetoryWidget> MainInventoryClassRef;
+	TSubclassOf<UCPPMainInvetoryWidget> MainInventoryClassRef;
 
 	UPROPERTY()
-		UCPPMainInvetoryWidget* MainInventoryWidgetRef;
+	UCPPMainInvetoryWidget* MainInventoryWidgetRef;
 };

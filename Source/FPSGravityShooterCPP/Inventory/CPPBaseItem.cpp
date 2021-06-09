@@ -3,6 +3,8 @@
 
 #include "CPPBaseItem.h"
 
+#include <string>
+
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -21,12 +23,9 @@ ACPPBaseItem::ACPPBaseItem()
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
 
-	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
-	Collision->InitSphereRadius(250.0f);
-	RootComponent = Collision;
-
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-	Mesh->SetupAttachment(Collision);
+	Mesh->SetCollisionProfileName(TEXT("PickupCollision"));
+	RootComponent = Mesh;
 
 	static ConstructorHelpers::FClassFinder<UUserWidget> PickupWidgetObj(TEXT("/Game/FPS/UI/Inventory/WB_PickupTest"));
 	if (PickupWidgetObj.Succeeded())
@@ -35,13 +34,9 @@ ACPPBaseItem::ACPPBaseItem()
 		Widget->SetWidgetClass(PickupWidgetObj.Class);
 		Widget->SetVisibility(false);
 		Widget->SetWidgetSpace(EWidgetSpace::Screen);
-		Widget->SetupAttachment(Collision);
+		Widget->SetCollisionProfileName(TEXT("UI"));
+		Widget->SetupAttachment(Mesh);
 	}
-
-	Collision->OnComponentBeginOverlap.AddDynamic(this, &ACPPBaseItem::OnSphereBeginOverlap);
-	Collision->OnComponentEndOverlap.AddDynamic(this, &ACPPBaseItem::OnSphereEndOverlap);
-
-	
 }
 
 // Called when the game starts or when spawned
@@ -56,35 +51,24 @@ void ACPPBaseItem::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 }
 
-void ACPPBaseItem::OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                                        UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep,
-                                        const FHitResult& SweepResult)
+void ACPPBaseItem::EnableWidgetVisibility(ACPPBaseCharacter* PawnRef)
 {
-	if (UKismetSystemLibrary::DoesImplementInterface(OtherActor, UCharacterInterface::StaticClass()))
+	if (PawnRef)
 	{
-		ACPPBaseCharacter* pawnObj = Cast<ACPPBaseCharacter>(OtherActor);
-		if (pawnObj)
+		if (PawnRef->IsLocallyControlled())
 		{
-			PawnRefList.Add(pawnObj);
-			if (pawnObj->IsLocallyControlled())
-			{
-				SetWidgetVisibility();
-				GetWorld()->GetTimerManager().SetTimer(WidgetRotationTimerHandle, this,
-				                                       &ACPPBaseItem::SetWidgetRotationTimer, 0.2, true);
-			}
+			SetWidgetVisibility();
+			GetWorld()->GetTimerManager().SetTimer(WidgetRotationTimerHandle, this,
+			                                       &ACPPBaseItem::SetWidgetRotationTimer, 0.2, true);
 		}
 	}
 }
 
-void ACPPBaseItem::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-                                      UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+void ACPPBaseItem::DisableWidgetVisibility(ACPPBaseCharacter* PawnRef)
 {
-	ACPPBaseCharacter* pawnObj = Cast<ACPPBaseCharacter>(OtherActor);
-	if (pawnObj)
+	if (PawnRef)
 	{
-		PawnRefList.Remove(pawnObj);
-
-		if (pawnObj->IsLocallyControlled())
+		if (PawnRef->IsLocallyControlled())
 		{
 			Widget->SetVisibility(false);
 			GetWorld()->GetTimerManager().ClearTimer(WidgetRotationTimerHandle);
@@ -92,11 +76,48 @@ void ACPPBaseItem::OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, 
 	}
 }
 
+bool ACPPBaseItem::ServerAddPawnRef_Validate(AController* PCRefParam)
+{
+	if (IsValid(PCRefParam))
+	{
+		return true;
+	}
+	return false;
+}
+
+void ACPPBaseItem::ServerAddPawnRef_Implementation(AController* PCRefParam)
+{
+	if (HasAuthority())
+	{
+		PCRefList.AddUnique(PCRefParam);
+		
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Black,
+			                                 FString::FromInt(PCRefList.Num()) + " What the Fuck is this");
+		}
+	}
+}
+
+bool ACPPBaseItem::ServerRemovePawnRef_Validate(AController* PCRefParam)
+{
+	if (IsValid(PCRefParam))
+	{
+		return true;
+	}
+	return false;
+}
+
+void ACPPBaseItem::ServerRemovePawnRef_Implementation(AController* PCRefParam)
+{
+	PCRefList.Remove(PCRefParam);
+}
+
 void ACPPBaseItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(ACPPBaseItem, PawnRefList);
+	DOREPLIFETIME(ACPPBaseItem, PCRefList);
 }
 
 void ACPPBaseItem::SetWidgetVisibility()
@@ -116,12 +137,12 @@ void ACPPBaseItem::SetWidgetRotationTimer()
 
 void ACPPBaseItem::RefreshList_Implementation()
 {
-	for (AActor* PawnActor : PawnRefList)
+	for (AController* PC : PCRefList)
 	{
-		ICharacterInterface* characterInterface = Cast<ICharacterInterface>(PawnActor);
+		ICharacterInterface* characterInterface = Cast<ICharacterInterface>(PC);
 		if (characterInterface)
 		{
-			characterInterface->RefreshInventory();
+			characterInterface->RefreshInventoryInterface();
 		}
 	}
 }

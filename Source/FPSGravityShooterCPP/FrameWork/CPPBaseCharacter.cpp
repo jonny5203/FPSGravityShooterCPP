@@ -2,6 +2,7 @@
 
 
 #include "CPPBaseCharacter.h"
+#include "CPPPlayerController.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -30,6 +31,8 @@ void ACPPBaseCharacter::BeginPlay()
 void ACPPBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	PickupLineTrace();
 }
 
 // Called to bind functionality to input
@@ -38,8 +41,9 @@ void ACPPBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 }
 
-void ACPPBaseCharacter::RefreshInventory()
+void ACPPBaseCharacter::RefreshInventoryInterface()
 {
+	
 }
 
 void ACPPBaseCharacter::StartMultiTrace()
@@ -72,60 +76,87 @@ void ACPPBaseCharacter::LineTrace()
 
 	FHitResult Hit;
 
-	DrawDebugLine(GetWorld(), start, end, FColor::Green, false, 10, 0, 1);
+	//DrawDebugLine(GetWorld(), start, end, FColor::Green, false, 10, 0, 1);
 
-	const bool isHit = GetWorld()->LineTraceSingleByChannel(Hit, start, end, ECC_Visibility);
+	const bool isHit = GetWorld()->LineTraceSingleByChannel(Hit, start, end, ECC_GameTraceChannel2);
 	if (isHit)
 	{
 		if (Hit.bBlockingHit)
 		{
-			/*
-			if (GEngine)
+			if (IsValid(Hit.GetActor()))
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Black, *Hit.GetActor()->GetName());
-				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Black, FString::Printf(TEXT("Impact Point is:  &s"), *Hit.ImpactPoint.ToString()));
-				GEngine->AddOnScreenDebugMessage(-1, 2.0f, FColor::Black, FString::Printf(TEXT("Impact normal is:  &s"), *Hit.ImpactNormal.ToString()));
-			}
-			*/
-
-			IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(Hit.Actor);
-			if (GameplayTagsInterface)
-			{
-				if (GameplayTagsInterface->
-					HasMatchingGameplayTag(ItemClassTag))
+				if (ItemRef != Hit.GetActor())
 				{
-					if (GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection))
+					IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(Hit.Actor);
+					if (GameplayTagsInterface)
 					{
-						ABoxCollectionItem* castingItem = Cast<ABoxCollectionItem>(Hit.Actor);
-						if (castingItem)
+						if (GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection))
 						{
-							BoxItemRef = castingItem;
+							ABoxCollectionItem* castingItem = Cast<ABoxCollectionItem>(Hit.Actor);
+							if (castingItem)
+							{
+								BoxItemRef = castingItem;
+							}
+							else
+							{
+								BoxItemRef = nullptr;
+							}
 						}
 						else
 						{
-							BoxItemRef = nullptr;
-						}
-					}
-					else
-					{
-						AMasterItem* castingItem = Cast<AMasterItem>(Hit.Actor);
-						if (castingItem)
-						{
-							ItemRef = castingItem;
-						}
-						else
-						{
-							ItemRef = nullptr;
+							AMasterItem* castingItem = Cast<AMasterItem>(Hit.Actor);
+							if (castingItem)
+							{
+								ItemRef = castingItem;
+								ItemRef->EnableWidgetVisibility(this);
+
+								if (IsValid(ItemRef))
+								{
+									if (HasAuthority())
+									{
+										if (GEngine)
+										{
+											GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Black,
+											                                 " testing");
+										}
+										ServerItemAddPawn(ItemRef, Controller);
+									}
+								}
+							}
+							else
+							{
+								ItemRef = nullptr;
+							}
 						}
 					}
 				}
 			}
+			else
+			{
+				if (IsValid(ItemRef))
+				{
+					ItemRef->DisableWidgetVisibility(this);
+					ServerItemRemovePawn(ItemRef);
+					ItemRef = nullptr;
+				}
+			}
+		}
+	}
+	else
+	{
+		if (IsValid(ItemRef))
+		{
+			ItemRef->DisableWidgetVisibility(this);
+			//ServerItemRemovePawn(ItemRef);
+			ItemRef = nullptr;
 		}
 	}
 }
 
 void ACPPBaseCharacter::MultiSphreTrace()
 {
+	MultiItemRef.Empty();
+	
 	// create tarray for hit results
 	TArray<FHitResult> OutHits;
 
@@ -140,8 +171,8 @@ void ACPPBaseCharacter::MultiSphreTrace()
 	DrawDebugSphere(GetWorld(), GetActorLocation(), MyColSphere.GetSphereRadius(), 50, FColor::Purple, true);
 
 	// check if something got hit in the sweep
-	bool isHit = GetWorld()->SweepMultiByChannel(OutHits, SweepStart, SweepEnd, FQuat::Identity, ECC_WorldStatic,
-		MyColSphere);
+	bool isHit = GetWorld()->SweepMultiByChannel(OutHits, SweepStart, SweepEnd, FQuat::Identity, ECC_GameTraceChannel2,
+	                                             MyColSphere);
 
 	if (isHit)
 	{
@@ -151,26 +182,14 @@ void ACPPBaseCharacter::MultiSphreTrace()
 			IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(Hit.Actor);
 			if (GameplayTagsInterface)
 			{
-				if (GameplayTagsInterface->
-					HasMatchingGameplayTag(ItemClassTag))
+				if (!(GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection)))
 				{
-					if (!(GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection)))
+					AMasterItem* castingItem = Cast<AMasterItem>(Hit.Actor);
+					if (castingItem && IsValid(castingItem))
 					{
-						AMasterItem* castingItem = Cast<AMasterItem>(Hit.Actor);
-						if (castingItem && IsValid(castingItem))
-						{
-							MultiItemRef.Add(castingItem);
-						}
+						MultiItemRef.Add(castingItem);
 					}
 				}
-			}
-			if (GEngine)
-			{
-				// screen log information on what was hit
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green,
-					FString::Printf(TEXT("Hit Result: %s"), *Hit.Actor->GetName()));
-				// uncommnet to see more info on sweeped actor
-				// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT("All Hit Information: %s"), *Hit.ToString()));
 			}
 		}
 	}
@@ -191,6 +210,63 @@ void ACPPBaseCharacter::DestroyPickupItem_Implementation(AMasterItem* itemRefPar
 	itemRefParam->DestroyItem();
 }
 
+bool ACPPBaseCharacter::ServerItemAddPawn_Validate(AMasterItem* itemRefParam, AController* PCRefParam)
+{
+	if (IsValid(itemRefParam) && IsValid(PCRefParam))
+	{
+		return true;
+	}
+	return false;
+}
+
+void ACPPBaseCharacter::ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, AController* PCRefParam)
+{
+	itemRefParam->ServerAddPawnRef(Controller);
+}
+
+bool ACPPBaseCharacter::ServerItemRemovePawn_Validate(AMasterItem* itemRefParam)
+{
+	if (IsValid(itemRefParam))
+	{
+		return true;
+	}
+	return false;
+}
+
+void ACPPBaseCharacter::ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam)
+{
+	itemRefParam->ServerRemovePawnRef(Controller);
+}
+
+void ACPPBaseCharacter::AddItemToInventory(const FItemData& ItemDataParam)
+{
+	Inventory.Add(ItemDataParam);
+}
+
+void ACPPBaseCharacter::DestroyMasterItem(AMasterItem* MasterItemParam)
+{
+	ServerDestroyMasterItem(MasterItemParam);
+}
+
+bool ACPPBaseCharacter::ServerDestroyMasterItem_Validate(AMasterItem* MasterItemParam)
+{
+	if (IsValid(MasterItemParam))
+	{
+		return true;
+	}
+	return false;
+}
+
+void ACPPBaseCharacter::ServerDestroyMasterItem_Implementation(AMasterItem* MasterItemParam)
+{
+	MasterItemParam->ServerDestroyItem();
+}
+
+void ACPPBaseCharacter::RebuildInventoryWidget()
+{
+	
+}
+
 void ACPPBaseCharacter::AddToInventory()
 {
 	if (IsValid(ItemRef))
@@ -205,4 +281,3 @@ void ACPPBaseCharacter::AddToInventory()
 		DestroyPickupItem(ItemRef);
 	}
 }
-

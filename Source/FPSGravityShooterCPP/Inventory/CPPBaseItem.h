@@ -50,6 +50,8 @@ struct FItemData
 	}
 };
 
+class ACPPBaseCharacter;
+
 UCLASS(BlueprintType)
 class FPSGRAVITYSHOOTERCPP_API ACPPBaseItem : public AActor, public IGameplayTagAssetInterface
 {
@@ -70,9 +72,6 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
-	class USphereComponent* Collision;
-
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly)
 	class UStaticMeshComponent* Mesh;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
@@ -87,17 +86,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameplayTags")
 	FGameplayTagContainer GameplayTags;
 
-private:
 	/** called when something enters the sphere component */
 	UFUNCTION()
-	void OnSphereBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
-	                          UPrimitiveComponent* OtherComp,
-	                          int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+	void DisableWidgetVisibility(ACPPBaseCharacter* PawnRef);
 
 	/** called when something leaves the sphere component */
 	UFUNCTION()
-	void OnSphereEndOverlap(UPrimitiveComponent* OverlappedComponent, class AActor* OtherActor,
-	                        class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+	void EnableWidgetVisibility(ACPPBaseCharacter* PawnRef);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerAddPawnRef(AController* PCRefParam);
+	bool ServerAddPawnRef_Validate(AController* PCRefParam);
+	void ServerAddPawnRef_Implementation(AController* PCRefParam);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerRemovePawnRef(AController* PCRefParam);
+	bool ServerRemovePawnRef_Validate(AController* PCRefParam);
+	void ServerRemovePawnRef_Implementation(AController* PCRefParam);
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -114,7 +119,7 @@ protected:
 	FTimerHandle WidgetRotationTimerHandle;
 
 	UPROPERTY(Replicated)
-	TArray<class ACPPBaseCharacter*> PawnRefList;
+	TArray<AController*> PCRefList;
 
 	UFUNCTION(Server, Reliable)
 	virtual void RefreshList();

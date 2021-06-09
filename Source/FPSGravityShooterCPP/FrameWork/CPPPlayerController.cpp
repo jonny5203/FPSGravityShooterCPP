@@ -21,6 +21,12 @@ ACPPPlayerController::ACPPPlayerController()
 
 }
 
+void ACPPPlayerController::RefreshInventory()
+{
+	MainInventoryWidgetRef->BuildInventory();
+	MainInventoryWidgetRef->BuildGroundItems();
+}
+
 void ACPPPlayerController::OpenInventory()
 {
 	if (bIsInInventory)
@@ -35,9 +41,8 @@ void ACPPPlayerController::OpenInventory()
 			UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
 			bIsInInventory = !bIsInInventory;
 
-			
-
 			MainInventoryWidgetRef->BuildInventory();
+			MainInventoryWidgetRef->BuildGroundItems();
 		}
 		else
 		{

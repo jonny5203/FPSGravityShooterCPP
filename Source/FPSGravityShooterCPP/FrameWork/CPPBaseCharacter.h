@@ -11,11 +11,12 @@
 #include "FPSGravityShooterCPP/Inventory/MasterItem.h"
 #include "CPPBaseCharacter.generated.h"
 
+class ACPPPlayerController;
 class UCPPMainInvetoryWidget;
 
 UCLASS(BlueprintType)
 class FPSGRAVITYSHOOTERCPP_API ACPPBaseCharacter : public ACharacter, public IGameplayTagAssetInterface,
-	public ICharacterInterface
+                                                   public ICharacterInterface
 {
 	GENERATED_BODY()
 
@@ -28,37 +29,38 @@ protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag ItemClassTag;
+	FGameplayTag ItemClassTag;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag WeaponTag;
+	FGameplayTag WeaponTag;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag AmmoTag;
+	FGameplayTag AmmoTag;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag BoxCollection;
+	FGameplayTag BoxCollection;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag Consumeables;
+	FGameplayTag Consumeables;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag Collectibles;
+	FGameplayTag Collectibles;
 
 	UPROPERTY(EditDefaultsOnly, Category = "GameplayTags")
-		FGameplayTag Abilities;
+	FGameplayTag Abilities;
 
 	UFUNCTION(BlueprintCallable)
-		void PickupLineTrace();
+	void PickupLineTrace();
 
 	UPROPERTY(EditDefaultsOnly)
-		class UWidgetComponent* PickupWidget;
+	class UWidgetComponent* PickupWidget;
 
 	UFUNCTION(BlueprintCallable)
-		void AddToInventory();
+	void AddToInventory();
 
 	UFUNCTION(BlueprintCallable)
-		void MultiSphreTrace();
+	void MultiSphreTrace();
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -73,27 +75,27 @@ public:
 	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GameplayTags")
-		FGameplayTagContainer GameplayTags;
+	FGameplayTagContainer GameplayTags;
 
 	UFUNCTION()
-		virtual void RefreshInventory() override;
+	virtual void RefreshInventoryInterface() override;
 
 	UFUNCTION()
-		virtual void StartMultiTrace() override;
+	virtual void StartMultiTrace() override;
 
 	UFUNCTION()
-		virtual void EndMultiTrace() override;
+	virtual void EndMultiTrace() override;
 
 private:
 	class UCameraComponent* CameraComponentRef;
 
 	class USpringArmComponent* SpringArmComponentRef;
 
+	UFUNCTION()
 	void LineTrace();
 
-
 	UFUNCTION(Server, Reliable, WithValidation)
-		void DestroyPickupItem(AMasterItem* itemRefParam);
+	void DestroyPickupItem(AMasterItem* itemRefParam);
 	bool DestroyPickupItem_Validate(AMasterItem* itemRefParam);
 	void DestroyPickupItem_Implementation(AMasterItem* itemRefParam);
 
@@ -105,7 +107,27 @@ private:
 
 	TArray<AMasterItem*> MultiItemRef;
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerItemAddPawn(AMasterItem* itemRefParam, AController* PCRefParam);
+	bool ServerItemAddPawn_Validate(AMasterItem* itemRefParam, AController* PCRefParam);
+	void ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, AController* PCRefParam);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerItemRemovePawn(AMasterItem* itemRefParam);
+	bool ServerItemRemovePawn_Validate(AMasterItem* itemRefParam);
+	void ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam);
+
 public:
+	TArray<AMasterItem*> GetMultiItemRef() const
+	{
+		return MultiItemRef;
+	}
+
+	void SetMultiItemRef(const TArray<AMasterItem*>& MultiItemRefParam)
+	{
+		this->MultiItemRef = MultiItemRefParam;
+	}
+
 	const TArray<FItemData>& GetInventory() const
 	{
 		return Inventory;
@@ -115,4 +137,17 @@ public:
 	{
 		this->Inventory = InventoryInstance;
 	}
+
+	UFUNCTION()
+	void AddItemToInventory(const FItemData& ItemDataParam);
+
+	UFUNCTION()
+	void DestroyMasterItem(AMasterItem* MasterItemParam);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerDestroyMasterItem(AMasterItem* MasterItemParam);
+	bool ServerDestroyMasterItem_Validate(AMasterItem* MasterItemParam);
+	void ServerDestroyMasterItem_Implementation(AMasterItem* MasterItemParam);
+
+	void RebuildInventoryWidget();
 };

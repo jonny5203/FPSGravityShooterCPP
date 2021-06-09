@@ -2,4 +2,20 @@
 
 
 #include "GroundSlot.h"
+#include "Components/Button.h"
+#include "FPSGravityShooterCPP/FrameWork/CPPBaseCharacter.h"
+#include "FPSGravityShooterCPP/FrameWork/CPPPlayerController.h"
+#include "FPSGravityShooterCPP/Inventory/MasterItem.h"
 
+void UGroundSlot::NativeConstruct()
+{
+	TakeButton->OnClicked.AddDynamic(this, &UGroundSlot::AddItemToInventory);
+}
+
+void UGroundSlot::AddItemToInventory()
+{
+	PawnRef->AddItemToInventory(ItemData);
+	PawnRef->GetMultiItemRef().Remove(MasterItemRef);
+	PawnRef->DestroyMasterItem(MasterItemRef); 
+	PCRef->RefreshInventory();
+}

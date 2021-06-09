@@ -2,7 +2,9 @@
 
 
 #include "MasterItem.h"
+#include "FPSGravityShooterCPP/FrameWork/CPPPlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "Kismet/GameplayStatics.h"
 
 void AMasterItem::TakeItem_Implementation()
 {
@@ -11,6 +13,10 @@ void AMasterItem::TakeItem_Implementation()
 void AMasterItem::ServerDestroyItem_Implementation()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Blue, TEXT("Server is called successfully"));
+	for (AController* Ref : PCRefList)
+	{
+		Cast<ACPPPlayerController>(Ref)->RefreshInventory();
+	}
 	MulticastDestroyItem();
 }
 

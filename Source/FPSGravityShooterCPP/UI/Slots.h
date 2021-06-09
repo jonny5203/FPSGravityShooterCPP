@@ -9,6 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Slots.generated.h"
 
+class ACPPPlayerController;
 /**
  * 
  */
@@ -17,17 +18,43 @@ class FPSGRAVITYSHOOTERCPP_API USlots : public UUserWidget
 {
 	GENERATED_BODY()
 
-public:
-	virtual void NativeConstruct() override;
-
 protected:
 	FItemData ItemData;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-		class UTextBlock* NameText;
+	class UTextBlock* NameText;
 
+	void SetToolTipWidget();
+
+	UPROPERTY()
+	ACPPBaseCharacter* PawnRef;
+
+	class AMasterItem* MasterItemRef;
+
+	UPROPERTY()
+	ACPPPlayerController* PCRef;
 
 public:
+	ACPPPlayerController* GetPCRef() const
+	{
+		return PCRef;
+	}
+
+	void SetPCRef(ACPPPlayerController* PCRefParam)
+	{
+		this->PCRef = PCRefParam;
+	}
+
+	ACPPBaseCharacter* GetPawnRef() const
+	{
+		return PawnRef;
+	}
+
+	void SetPawnRef(ACPPBaseCharacter* PawnRefParam)
+	{
+		this->PawnRef = PawnRefParam;
+	}
+
 	FItemData GetItemData() const
 	{
 		return ItemData;
@@ -36,6 +63,16 @@ public:
 	void SetItemData(const FItemData& itemDataObject)
 	{
 		ItemData = itemDataObject;
+	}
+
+	AMasterItem* GetMasterItemRef() const
+	{
+		return MasterItemRef;
+	}
+
+	void SetMasterItemRef(AMasterItem* MasterItemRefParam)
+	{
+		this->MasterItemRef = MasterItemRefParam;
 	}
 
 	void SetNameText();

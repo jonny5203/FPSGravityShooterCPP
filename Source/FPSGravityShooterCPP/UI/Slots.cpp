@@ -3,10 +3,8 @@
 
 #include "Slots.h"
 
-
-void USlots::NativeConstruct()
+void USlots::SetToolTipWidget()
 {
-
 }
 
 void USlots::SetNameText()

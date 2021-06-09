@@ -13,5 +13,15 @@ UCLASS()
 class FPSGRAVITYSHOOTERCPP_API UGroundSlot : public USlots
 {
 	GENERATED_BODY()
-	
+
+public:
+	virtual void NativeConstruct() override;
+
+protected:
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	class UButton* TakeButton;
+
+private:
+	UFUNCTION()
+	void AddItemToInventory();
 };

@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "CharacterInterface.generated.h"
+#include "BaseItemInterface.generated.h"
 
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI)
-class UCharacterInterface : public UInterface
+class UBaseItemInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -16,18 +16,10 @@ class UCharacterInterface : public UInterface
 /**
  * 
  */
-class FPSGRAVITYSHOOTERCPP_API ICharacterInterface
+class FPSGRAVITYSHOOTERCPP_API IBaseItemInterface
 {
 	GENERATED_BODY()
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
-	UFUNCTION()
-	virtual void RefreshInventoryInterface() = 0;
-	
-	UFUNCTION()
-	virtual void StartMultiTrace() = 0;
-
-	UFUNCTION()
-	virtual void EndMultiTrace() = 0;
 };
