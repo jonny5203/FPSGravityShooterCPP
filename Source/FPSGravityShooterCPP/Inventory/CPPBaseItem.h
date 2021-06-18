@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "CPPBaseItem.generated.h"
 
+class ACPPPlayerController;
 UENUM(BlueprintType)
 enum class EItemCategory : uint8
 {
@@ -16,6 +17,17 @@ enum class EItemCategory : uint8
 	Weapon UMETA(DisplayName = "Weapon"),
 	Ammo UMETA(DisplayName = "Ammo"),
 	Abilities UMETA(DisplayName = "Abilities")
+};
+
+UENUM(BlueprintType)
+enum class EItemRarity : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Common UMETA(DisplayName = "Common"),
+	Rare UMETA(DisplayName = "Rare"),
+	Legendary UMETA(DisplayName = "Legendary"),
+	Epic UMETA(DisplayName = "Epic"),
+	GodLevel UMETA(DisplayName = "GodLevel")
 };
 
 USTRUCT(BlueprintType)
@@ -44,9 +56,20 @@ struct FItemData
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
 	bool bIsStackable;
 
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
+	TSubclassOf<class AMasterItem> ClassOfItem;
+
+	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly)
+	EItemRarity ItemRarity;
+
 	friend bool operator==(const FItemData& A, const FItemData& B)
 	{
 		return A.Name.EqualTo(B.Name, ETextComparisonLevel::Default);
+	}
+
+	void IncreaseAmount(int32 amountToAdd)
+	{
+		Amount = Amount + amountToAdd;
 	}
 };
 
@@ -95,14 +118,14 @@ public:
 	void EnableWidgetVisibility(ACPPBaseCharacter* PawnRef);
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerAddPawnRef(AController* PCRefParam);
-	bool ServerAddPawnRef_Validate(AController* PCRefParam);
-	void ServerAddPawnRef_Implementation(AController* PCRefParam);
+	void ServerAddPawnRef(ACPPPlayerController* PCRefParam);
+	bool ServerAddPawnRef_Validate(ACPPPlayerController* PCRefParam);
+	void ServerAddPawnRef_Implementation(ACPPPlayerController* PCRefParam);
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerRemovePawnRef(AController* PCRefParam);
-	bool ServerRemovePawnRef_Validate(AController* PCRefParam);
-	void ServerRemovePawnRef_Implementation(AController* PCRefParam);
+	void ServerRemovePawnRef(ACPPPlayerController* PCRefParam);
+	bool ServerRemovePawnRef_Validate(ACPPPlayerController* PCRefParam);
+	void ServerRemovePawnRef_Implementation(ACPPPlayerController* PCRefParam);
 
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -119,7 +142,7 @@ protected:
 	FTimerHandle WidgetRotationTimerHandle;
 
 	UPROPERTY(Replicated)
-	TArray<AController*> PCRefList;
+	TArray<ACPPPlayerController*> PCRefList;
 
 	UFUNCTION(Server, Reliable)
 	virtual void RefreshList();

@@ -13,11 +13,12 @@ void AMasterItem::TakeItem_Implementation()
 void AMasterItem::ServerDestroyItem_Implementation()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Blue, TEXT("Server is called successfully"));
-	for (AController* Ref : PCRefList)
+	for (ACPPPlayerController* Ref : PCRefList)
 	{
-		Cast<ACPPPlayerController>(Ref)->RefreshInventory();
+		Ref->RefreshInventoryMasterItemTake(this);
 	}
-	MulticastDestroyItem();
+	Destroy();
+	//MulticastDestroyItem();
 }
 
 void AMasterItem::MulticastDestroyItem_Implementation()

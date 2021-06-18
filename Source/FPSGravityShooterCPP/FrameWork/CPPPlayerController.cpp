@@ -2,29 +2,71 @@
 
 
 #include "CPPPlayerController.h"
-
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "FPSGravityShooterCPP//UI/CPPMainInvetoryWidget.h"
 #include "FPSGravityShooterCPP/Interfaces/CharacterInterface.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Character.h"
+#include "CPPBaseCharacter.h"
 
 
 ACPPPlayerController::ACPPPlayerController()
 {
-
-	static ConstructorHelpers::FClassFinder<UCPPMainInvetoryWidget> mainInventoryObj(TEXT("/Game/FPS/UI/Inventory/WB_MainInventory"));
+	static ConstructorHelpers::FClassFinder<UCPPMainInvetoryWidget> mainInventoryObj(
+		TEXT("/Game/FPS/UI/Inventory/WB_MainInventory"));
 	if (mainInventoryObj.Succeeded())
 	{
 		MainInventoryClassRef = mainInventoryObj.Class;
 	}
-
 }
 
-void ACPPPlayerController::RefreshInventory()
+void ACPPPlayerController::RefreshInventoryMasterItemTake(AMasterItem* MasterItemRefParam)
 {
+	if (IsValid(PawnRef))
+	{
+		PawnRef->TakeMasterItem(MasterItemRefParam);
+	}
+	else
+	{
+		ACPPBaseCharacter* castingPawn = Cast<ACPPBaseCharacter>(GetCharacter());
+		if (castingPawn)
+		{
+			PawnRef = castingPawn;
+			PawnRef->TakeMasterItem(MasterItemRefParam);
+		}
+	}
+	
 	MainInventoryWidgetRef->BuildInventory();
 	MainInventoryWidgetRef->BuildGroundItems();
+}
+
+void ACPPPlayerController::RefreshInventoryMasterItemDrop(int32 IndexNumParam, const FItemData& ItemDataParam)
+{
+	if (IsValid(PawnRef))
+	{
+		PawnRef->RemoveItemFromInventory(IndexNumParam);
+		PawnRef->DropMasterItem(ItemDataParam);
+		PawnRef->StartMultiTrace();
+	}
+	else
+	{
+		ACPPBaseCharacter* castingPawn = Cast<ACPPBaseCharacter>(GetCharacter());
+		if (castingPawn)
+		{
+			PawnRef = castingPawn;
+			PawnRef->RemoveItemFromInventory(IndexNumParam);
+			PawnRef->DropMasterItem(ItemDataParam);
+			PawnRef->StartMultiTrace();
+		}
+	}
+
+	MainInventoryWidgetRef->BuildInventory();
+	MainInventoryWidgetRef->BuildGroundItems();
+}
+
+void ACPPPlayerController::ResetPawnRef()
+{
+	PawnRef = nullptr;
 }
 
 void ACPPPlayerController::OpenInventory()
@@ -34,7 +76,7 @@ void ACPPPlayerController::OpenInventory()
 		if (IsValid(MainInventoryWidgetRef))
 		{
 			Cast<ICharacterInterface>(GetCharacter())->StartMultiTrace();
-			
+
 			MainInventoryWidgetRef->SetVisibility(ESlateVisibility::Visible);
 
 			SetShowMouseCursor(true);
@@ -47,7 +89,7 @@ void ACPPPlayerController::OpenInventory()
 		else
 		{
 			Cast<ICharacterInterface>(GetCharacter())->StartMultiTrace();
-			
+
 			MainInventoryWidgetRef = CreateWidget<UCPPMainInvetoryWidget>(this, MainInventoryClassRef);
 			MainInventoryWidgetRef->AddToViewport();
 

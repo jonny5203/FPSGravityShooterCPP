@@ -10,6 +10,8 @@
 #include "Slots.generated.h"
 
 class ACPPPlayerController;
+class UTextBlock;
+class UHoverWidget;
 /**
  * 
  */
@@ -22,19 +24,28 @@ protected:
 	FItemData ItemData;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	class UTextBlock* NameText;
+	UTextBlock* NameText;
 
-	void SetToolTipWidget();
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UTextBlock* ItemAmountText;
 
 	UPROPERTY()
 	ACPPBaseCharacter* PawnRef;
 
+	UPROPERTY()
 	class AMasterItem* MasterItemRef;
 
 	UPROPERTY()
 	ACPPPlayerController* PCRef;
 
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UHoverWidget> HoverWidgetClassRef;
+
 public:
+	void SetToolTipWidget();
+	
+	void SetItemAmountText();
+
 	ACPPPlayerController* GetPCRef() const
 	{
 		return PCRef;

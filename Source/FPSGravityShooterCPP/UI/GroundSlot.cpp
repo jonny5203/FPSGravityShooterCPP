@@ -14,8 +14,10 @@ void UGroundSlot::NativeConstruct()
 
 void UGroundSlot::AddItemToInventory()
 {
-	PawnRef->AddItemToInventory(ItemData);
-	PawnRef->GetMultiItemRef().Remove(MasterItemRef);
-	PawnRef->DestroyMasterItem(MasterItemRef); 
-	PCRef->RefreshInventory();
+	if(PawnRef->AddItemToInventory(ItemData))
+	{
+		//PawnRef->GetMultiItemRef().Remove(MasterItemRef); Needed for when the another player has the inventory open when you take the item with F key
+		//Maybe just call destroy directly in here rather than calling pawn and then back
+		PawnRef->DestroyMasterItem(MasterItemRef); 
+	}
 }

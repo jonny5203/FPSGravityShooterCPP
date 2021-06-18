@@ -61,6 +61,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UScrollBox* GroundItemContainer;
 
+	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	class UTextBlock* WeightText;
+
 protected:
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<class UItemSlot> ItemSlotClassRef;

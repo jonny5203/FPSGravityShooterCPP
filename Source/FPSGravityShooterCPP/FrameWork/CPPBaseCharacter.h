@@ -61,6 +61,12 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void MultiSphreTrace();
 
+	UPROPERTY()
+	ACPPPlayerController* PlayerControllerRef;
+
+	UFUNCTION(BlueprintCallable)
+	void CalledWhenPossessedIsCalled(AController* NewController);
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -108,16 +114,55 @@ private:
 	TArray<AMasterItem*> MultiItemRef;
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerItemAddPawn(AMasterItem* itemRefParam, AController* PCRefParam);
-	bool ServerItemAddPawn_Validate(AMasterItem* itemRefParam, AController* PCRefParam);
-	void ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, AController* PCRefParam);
+	void ServerItemAddPawn(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+	bool ServerItemAddPawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+	void ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerItemRemovePawn(AMasterItem* itemRefParam);
-	bool ServerItemRemovePawn_Validate(AMasterItem* itemRefParam);
-	void ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam);
+	void ServerItemRemovePawn(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+	bool ServerItemRemovePawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+	void ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+
+	//
+	//
+	// Just Need To Send a PC reg when multicast as well
+	//
+	//
+
+	void CheckForGroundTrace(FVector& End, bool& bIsHit, FVector& SpawnVectorParam);
+
+	float CurrentWeight = 0;
+
+	UPROPERTY(EditDefaultsOnly)
+	float MaxWeight;
+
+	UFUNCTION()
+	bool StackableItemExist(const FText& ItemNameParam, int32& IndexNumParam);
+
+	UFUNCTION()
+	void IncreaseAmountOnStackedItem(const FItemData& ItemDataParam, int32& IndexNumParam);
 
 public:
+	const float& GetCurrentWeight() const
+	{
+		return CurrentWeight;
+	}
+
+	void SetCurrentWeight(const float& CurrentWeightParam)
+	{
+		this->CurrentWeight = CurrentWeightParam;
+	}
+
+	const float& GetMaxWeight() const
+	{
+		return MaxWeight;
+	}
+
+	void SetMaxWeight(const float& MaxWeightParam)
+	{
+		this->MaxWeight = MaxWeightParam;
+	}
+
 	TArray<AMasterItem*> GetMultiItemRef() const
 	{
 		return MultiItemRef;
@@ -139,7 +184,10 @@ public:
 	}
 
 	UFUNCTION()
-	void AddItemToInventory(const FItemData& ItemDataParam);
+	void TakeMasterItem(AMasterItem* MasterItemRefParam);
+
+	UFUNCTION()
+	bool AddItemToInventory(const FItemData& ItemDataParam);
 
 	UFUNCTION()
 	void DestroyMasterItem(AMasterItem* MasterItemParam);
@@ -150,4 +198,12 @@ public:
 	void ServerDestroyMasterItem_Implementation(AMasterItem* MasterItemParam);
 
 	void RebuildInventoryWidget();
+
+	void RemoveItemFromInventory(const int32& IndexNumParam);
+
+	void DropMasterItem(const FItemData& ItemDataParam);
+
+	void DropBoxCollectionItem(const FItemData& ItemDataParam);
+
+	float CalculateCurrentWeight();
 };

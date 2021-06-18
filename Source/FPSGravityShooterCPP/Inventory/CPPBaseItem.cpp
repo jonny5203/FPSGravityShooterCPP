@@ -2,9 +2,6 @@
 
 
 #include "CPPBaseItem.h"
-
-#include <string>
-
 #include "Components/CapsuleComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -14,6 +11,7 @@
 #include "FPSGravityShooterCPP/FrameWork/CPPBaseCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/WidgetComponent.h"
+#include "FPSGravityShooterCPP/FrameWork/CPPPlayerController.h"
 #include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
@@ -25,6 +23,9 @@ ACPPBaseItem::ACPPBaseItem()
 
 	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
 	Mesh->SetCollisionProfileName(TEXT("PickupCollision"));
+	Mesh->SetSimulatePhysics(true);
+	Mesh->SetEnableGravity(true);
+	Mesh->CanCharacterStepUpOn = ECB_No;
 	RootComponent = Mesh;
 
 	static ConstructorHelpers::FClassFinder<UUserWidget> PickupWidgetObj(TEXT("/Game/FPS/UI/Inventory/WB_PickupTest"));
@@ -76,7 +77,7 @@ void ACPPBaseItem::DisableWidgetVisibility(ACPPBaseCharacter* PawnRef)
 	}
 }
 
-bool ACPPBaseItem::ServerAddPawnRef_Validate(AController* PCRefParam)
+bool ACPPBaseItem::ServerAddPawnRef_Validate(ACPPPlayerController* PCRefParam)
 {
 	if (IsValid(PCRefParam))
 	{
@@ -85,7 +86,7 @@ bool ACPPBaseItem::ServerAddPawnRef_Validate(AController* PCRefParam)
 	return false;
 }
 
-void ACPPBaseItem::ServerAddPawnRef_Implementation(AController* PCRefParam)
+void ACPPBaseItem::ServerAddPawnRef_Implementation(ACPPPlayerController* PCRefParam)
 {
 	if (HasAuthority())
 	{
@@ -99,7 +100,7 @@ void ACPPBaseItem::ServerAddPawnRef_Implementation(AController* PCRefParam)
 	}
 }
 
-bool ACPPBaseItem::ServerRemovePawnRef_Validate(AController* PCRefParam)
+bool ACPPBaseItem::ServerRemovePawnRef_Validate(ACPPPlayerController* PCRefParam)
 {
 	if (IsValid(PCRefParam))
 	{
@@ -108,7 +109,7 @@ bool ACPPBaseItem::ServerRemovePawnRef_Validate(AController* PCRefParam)
 	return false;
 }
 
-void ACPPBaseItem::ServerRemovePawnRef_Implementation(AController* PCRefParam)
+void ACPPBaseItem::ServerRemovePawnRef_Implementation(ACPPPlayerController* PCRefParam)
 {
 	PCRefList.Remove(PCRefParam);
 }

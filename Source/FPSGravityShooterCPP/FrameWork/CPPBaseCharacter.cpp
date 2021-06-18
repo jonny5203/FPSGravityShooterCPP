@@ -43,7 +43,6 @@ void ACPPBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 
 void ACPPBaseCharacter::RefreshInventoryInterface()
 {
-	
 }
 
 void ACPPBaseCharacter::StartMultiTrace()
@@ -112,15 +111,13 @@ void ACPPBaseCharacter::LineTrace()
 
 								if (IsValid(ItemRef))
 								{
-									if (HasAuthority())
+									if (GEngine)
 									{
-										if (GEngine)
-										{
-											GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Black,
-											                                 " testing");
-										}
-										ServerItemAddPawn(ItemRef, Controller);
+										GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Black,
+										                                 " testing");
 									}
+
+									ServerItemAddPawn(ItemRef, PlayerControllerRef);
 								}
 							}
 							else
@@ -136,7 +133,7 @@ void ACPPBaseCharacter::LineTrace()
 				if (IsValid(ItemRef))
 				{
 					ItemRef->DisableWidgetVisibility(this);
-					ServerItemRemovePawn(ItemRef);
+					ServerItemRemovePawn(ItemRef, PlayerControllerRef);
 					ItemRef = nullptr;
 				}
 			}
@@ -156,7 +153,7 @@ void ACPPBaseCharacter::LineTrace()
 void ACPPBaseCharacter::MultiSphreTrace()
 {
 	MultiItemRef.Empty();
-	
+
 	// create tarray for hit results
 	TArray<FHitResult> OutHits;
 
@@ -188,6 +185,7 @@ void ACPPBaseCharacter::MultiSphreTrace()
 					if (castingItem && IsValid(castingItem))
 					{
 						MultiItemRef.Add(castingItem);
+						ServerItemAddPawn(castingItem, PlayerControllerRef);
 					}
 				}
 			}
@@ -210,7 +208,7 @@ void ACPPBaseCharacter::DestroyPickupItem_Implementation(AMasterItem* itemRefPar
 	itemRefParam->DestroyItem();
 }
 
-bool ACPPBaseCharacter::ServerItemAddPawn_Validate(AMasterItem* itemRefParam, AController* PCRefParam)
+bool ACPPBaseCharacter::ServerItemAddPawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
 {
 	if (IsValid(itemRefParam) && IsValid(PCRefParam))
 	{
@@ -219,28 +217,128 @@ bool ACPPBaseCharacter::ServerItemAddPawn_Validate(AMasterItem* itemRefParam, AC
 	return false;
 }
 
-void ACPPBaseCharacter::ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, AController* PCRefParam)
+void ACPPBaseCharacter::ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
 {
-	itemRefParam->ServerAddPawnRef(Controller);
+	itemRefParam->ServerAddPawnRef(PCRefParam);
 }
 
-bool ACPPBaseCharacter::ServerItemRemovePawn_Validate(AMasterItem* itemRefParam)
+bool ACPPBaseCharacter::ServerItemRemovePawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
 {
-	if (IsValid(itemRefParam))
+	if (IsValid(itemRefParam) && IsValid(PCRefParam))
 	{
 		return true;
 	}
 	return false;
 }
 
-void ACPPBaseCharacter::ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam)
+void ACPPBaseCharacter::ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
 {
-	itemRefParam->ServerRemovePawnRef(Controller);
+	itemRefParam->ServerRemovePawnRef(PCRefParam);
 }
 
-void ACPPBaseCharacter::AddItemToInventory(const FItemData& ItemDataParam)
+void ACPPBaseCharacter::CheckForGroundTrace(FVector& End, bool& bIsHit, FVector& SpawnVectorParam)
 {
-	Inventory.Add(ItemDataParam);
+	// create tarray for hit results
+	FHitResult OutHits;
+
+	float xMin = End.X - 50;
+	float xMax = End.X + 50;
+
+	float RandomX = FMath::RandRange(xMin, xMax);
+
+	float yMin = End.Y - 50;
+	float yMax = End.Y + 50;
+
+	float RandomY = FMath::RandRange(yMin, yMax);
+
+	// start and end locations
+	FVector SweepStart = FVector(RandomX, RandomY, End.Z + 1000);
+	FVector SweepEnd = FVector(RandomX, RandomY, End.Y);
+
+	// create a collision sphere
+	FCollisionShape MyColSphere = FCollisionShape::MakeCapsule(40.0f, 1000.0f);
+
+	// draw collision sphere
+	DrawDebugCapsule(GetWorld(), End, MyColSphere.GetCapsuleHalfHeight(), MyColSphere.GetCapsuleRadius(),
+	                 this->GetActorRotation().Quaternion(), FColor::Purple, true);
+
+	// check if something got hit in the sweep
+	bool isHit = GetWorld()->SweepSingleByChannel(OutHits, SweepStart, SweepEnd, FQuat::Identity, ECC_GameTraceChannel2,
+	                                              MyColSphere);
+
+	if (isHit)
+	{
+		bIsHit = isHit;
+		SpawnVectorParam = OutHits.GetActor()->GetActorLocation();
+	}
+}
+
+float ACPPBaseCharacter::CalculateCurrentWeight()
+{
+	float LocalCurrentWeight = 0;
+	for (const FItemData& LoopItemData : Inventory)
+	{
+		LocalCurrentWeight = LocalCurrentWeight + (LoopItemData.Amount * LoopItemData.Weight);
+	}
+	return LocalCurrentWeight;
+}
+
+void ACPPBaseCharacter::CalledWhenPossessedIsCalled(AController* NewController)
+{
+	PlayerControllerRef = Cast<ACPPPlayerController>(NewController);
+}
+
+void ACPPBaseCharacter::TakeMasterItem(AMasterItem* MasterItemRefParam)
+{
+	MultiItemRef.Remove(MasterItemRefParam);
+}
+
+bool ACPPBaseCharacter::AddItemToInventory(const FItemData& ItemDataParam)
+{
+	if ((CurrentWeight + (ItemDataParam.Amount * ItemDataParam.Weight)) <= MaxWeight)
+	{
+		if (ItemDataParam.bIsStackable)
+		{
+			int32 IndexNum;
+			if (StackableItemExist(ItemDataParam.Name, IndexNum))
+			{
+				//GEngine->AddOnScreenDebugMessage(-1, 4, FColor::Black, "Stack");
+				IncreaseAmountOnStackedItem(ItemDataParam, IndexNum);
+			}
+			else
+			{
+				Inventory.Add(ItemDataParam);
+				CurrentWeight = CalculateCurrentWeight();
+			}
+			return true;
+		}
+		else
+		{
+			Inventory.Add(ItemDataParam);
+			CurrentWeight = CalculateCurrentWeight();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ACPPBaseCharacter::StackableItemExist(const FText& ItemNameParam, int32& IndexNumParam)
+{
+	for (int i = 0; i < Inventory.Num(); i++)
+	{
+		if (ItemNameParam.EqualTo(Inventory[i].Name))
+		{
+			IndexNumParam = i;
+			return true;
+		}
+	}
+	return false;
+}
+
+void ACPPBaseCharacter::IncreaseAmountOnStackedItem(const FItemData& ItemDataParam, int32& IndexNumParam)
+{
+	Inventory[IndexNumParam].IncreaseAmount(ItemDataParam.Amount);
 }
 
 void ACPPBaseCharacter::DestroyMasterItem(AMasterItem* MasterItemParam)
@@ -264,7 +362,64 @@ void ACPPBaseCharacter::ServerDestroyMasterItem_Implementation(AMasterItem* Mast
 
 void ACPPBaseCharacter::RebuildInventoryWidget()
 {
-	
+}
+
+void ACPPBaseCharacter::RemoveItemFromInventory(const int32& IndexNumParam)
+{
+	//GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Black, FString::FromInt(IndexNumParam));
+	Inventory.RemoveAt(IndexNumParam);
+}
+
+void ACPPBaseCharacter::DropMasterItem(const FItemData& ItemDataParam)
+{
+	FVector SpawnLocation = this->GetActorLocation();
+	//Make it a Random Forward Vector
+	FVector SpawnForwardLocation = this->GetActorForwardVector() * -100;
+
+	FVector SpawnActorTransform = SpawnLocation + SpawnForwardLocation;
+
+	FActorSpawnParameters SpawnParameters = FActorSpawnParameters();
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	float xMin = SpawnActorTransform.X - 50;
+	float xMax = SpawnActorTransform.X + 50;
+
+	float RandomX = FMath::RandRange(xMin, xMax);
+
+	float yMin = SpawnActorTransform.Y - 50;
+	float yMax = SpawnActorTransform.Y + 50;
+
+	float RandomY = FMath::RandRange(yMin, yMax);
+
+	bool IsHit = false;
+	FVector SpawnVector;
+
+	CheckForGroundTrace(SpawnActorTransform, IsHit, SpawnVector);
+
+	if (IsHit)
+	{
+		AMasterItem* DroppedItem = GetWorld()->SpawnActor<AMasterItem>(ItemDataParam.ClassOfItem, SpawnVector,
+		                                                               FRotator(0, 0, 0), SpawnParameters);
+		if (DroppedItem)
+		{
+			DroppedItem->SetItemData(ItemDataParam);
+		}
+	}
+	else
+	{
+		AMasterItem* DroppedItem = GetWorld()->SpawnActor<AMasterItem>(ItemDataParam.ClassOfItem,
+		                                                               FVector(RandomX,
+		                                                                       RandomY, 200),
+		                                                               FRotator(0, 0, 0), SpawnParameters);
+		if (DroppedItem)
+		{
+			DroppedItem->SetItemData(ItemDataParam);
+		}
+	}
+}
+
+void ACPPBaseCharacter::DropBoxCollectionItem(const FItemData& ItemDataParam)
+{
 }
 
 void ACPPBaseCharacter::AddToInventory()

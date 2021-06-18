@@ -4,7 +4,6 @@
 #include "CPPMainInvetoryWidget.h"
 #include "Components/ScrollBox.h"
 #include "FPSGravityShooterCPP/FrameWork/CPPBaseCharacter.h"
-#include "Kismet/GameplayStatics.h"
 #include "ItemSlot.h"
 #include "GroundSlot.h"
 #include "GroundBoxSlot.h"
@@ -30,15 +29,27 @@ void UCPPMainInvetoryWidget::BuildInventory()
 {
 	InventoryItemContainer->ClearChildren();
 
+	int32 InventoryIndexNum = 0;
 	for (const FItemData& item : PawnRef->GetInventory())
 	{
-		USlots* slot = CreateWidget<USlots>(GetWorld(), ItemSlotClassRef);
+		UItemSlot* slot = CreateWidget<UItemSlot>(GetWorld(), ItemSlotClassRef);
 		slot->SetItemData(item);
 		slot->SetNameText();
+		slot->SetItemAmountText();
 		slot->SetPawnRef(PawnRef);
 		slot->SetPCRef(PCRef);
+		slot->SetIndexNum(InventoryIndexNum);
+		slot->SetToolTipWidget();
 		InventoryItemContainer->AddChild(slot);
+
+		InventoryIndexNum = InventoryIndexNum + 1;
 	}
+
+	float CurrentWeightNum = PawnRef->GetCurrentWeight();
+	FString CurrentWeightString = FString::SanitizeFloat(CurrentWeightNum);
+	FString MaxWeightString = FString::SanitizeFloat(PawnRef->GetMaxWeight());
+	FString WeightAppendText = CurrentWeightString + " / " + MaxWeightString;
+	WeightText->SetText(FText::FromString(WeightAppendText));
 }
 
 void UCPPMainInvetoryWidget::BuildGroundItems()
@@ -52,9 +63,11 @@ void UCPPMainInvetoryWidget::BuildGroundItems()
 		USlots* slot = CreateWidget<USlots>(GetWorld(), GroundSlotClassRef);
 		slot->SetItemData(item);
 		slot->SetNameText();
+		slot->SetItemAmountText();
 		slot->SetPawnRef(PawnRef);
 		slot->SetMasterItemRef(Ref);
 		slot->SetPCRef(PCRef);
+		slot->SetToolTipWidget();
 		GroundItemContainer->AddChild(slot);
 	}
 }

@@ -4,9 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "CPPBaseCharacter.h"
 #include "CPPPlayerController.generated.h"
-
-class UCPPMainInvetoryWidget;
 
 /**
  *
@@ -20,7 +19,13 @@ public:
 	ACPPPlayerController();
 
 	UFUNCTION()
-	void RefreshInventory();
+	void RefreshInventoryMasterItemTake(AMasterItem* MasterItemRefParam);
+
+	UFUNCTION()
+	void RefreshInventoryMasterItemDrop(int32 IndexNumParam, const FItemData& ItemDataParam);
+
+	UFUNCTION()
+	void ResetPawnRef();
 
 protected:
 	UFUNCTION()
@@ -36,4 +41,8 @@ protected:
 
 	UPROPERTY()
 	UCPPMainInvetoryWidget* MainInventoryWidgetRef;
+
+private:
+	UPROPERTY()
+	ACPPBaseCharacter* PawnRef;
 };
