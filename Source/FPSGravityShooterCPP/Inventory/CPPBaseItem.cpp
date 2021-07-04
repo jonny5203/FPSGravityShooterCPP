@@ -135,15 +135,3 @@ void ACPPBaseItem::SetWidgetRotationTimer()
 	FRotator lookUpRot = UKismetMathLibrary::FindLookAtRotation(widgetLocation, actorLocation);
 	Widget->SetWorldRotation(lookUpRot);
 }
-
-void ACPPBaseItem::RefreshList_Implementation()
-{
-	for (AController* PC : PCRefList)
-	{
-		ICharacterInterface* characterInterface = Cast<ICharacterInterface>(PC);
-		if (characterInterface)
-		{
-			characterInterface->RefreshInventoryInterface();
-		}
-	}
-}

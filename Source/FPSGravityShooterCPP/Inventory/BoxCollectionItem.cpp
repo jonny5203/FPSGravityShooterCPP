@@ -4,9 +4,16 @@
 #include "BoxCollectionItem.h"
 #include "Net/UnrealNetwork.h"
 
-void ABoxCollectionItem::TakeItem_Implementation(const FItemData& item)
+//Create gameplay tags for all the items in this collection for easier determine what it is
+
+void ABoxCollectionItem::TakeItem(int32 ItemDataIndexNum)
 {
-	ItemDataList.Remove(item);
+	ServerTakeItem(ItemDataIndexNum);
+}
+
+void ABoxCollectionItem::ServerTakeItem_Implementation(int32 ItemDataIndexNum)
+{
+	ItemDataList.RemoveAt(ItemDataIndexNum);
 
 	if (ItemDataList.Num() <= 0)
 	{
@@ -31,6 +38,21 @@ void ABoxCollectionItem::CheckListLength()
 	{
 		DestroyItem();
 	}
+}
+
+void ABoxCollectionItem::RefreshList()
+{
+
+}
+
+void ABoxCollectionItem::ServerRefreshList_Implementation()
+{
+
+}
+
+void ABoxCollectionItem::MultiCastRefreshList_Implementation()
+{
+
 }
 
 void ABoxCollectionItem::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const

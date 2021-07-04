@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "FPSGravityShooterCPP/Inventory/CPPBaseItem.h"
 #include "UObject/Interface.h"
 #include "PlayerControllerInterface.generated.h"
 
@@ -22,4 +23,21 @@ class FPSGRAVITYSHOOTERCPP_API IPlayerControllerInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
+	UFUNCTION()
+	virtual void RefreshInventory() = 0;
+
+	UFUNCTION()
+	virtual void RefreshInventoryMasterItemTake(AMasterItem* MasterItemRefParam) = 0;
+
+	UFUNCTION()
+	virtual void RefreshInventoryMasterItemDrop(int32 IndexNumParam, const FItemData& ItemDataParam) = 0;
+
+	UFUNCTION()
+	virtual bool GetIsInInventory() const = 0;
+
+	UFUNCTION()
+	virtual void ResetPawnRef() = 0;
+
+	UFUNCTION()
+	virtual void SetPawnInterfaceRef() = 0;
 };

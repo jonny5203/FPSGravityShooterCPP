@@ -19,6 +19,8 @@ ACPPBaseCharacter::ACPPBaseCharacter(const FObjectInitializer& ObjectInitializer
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	PCInterfaceRef = nullptr;
 }
 
 // Called when the game starts or when spawned
@@ -32,6 +34,11 @@ void ACPPBaseCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (GetCharacterMovement()->Velocity.Size() != 0)
+	{
+		MultiSphereTrace();
+	}
+
 	PickupLineTrace();
 }
 
@@ -39,19 +46,19 @@ void ACPPBaseCharacter::Tick(float DeltaTime)
 void ACPPBaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-}
 
-void ACPPBaseCharacter::RefreshInventoryInterface()
-{
+	PlayerInputComponent->BindAction("Interact", IE_Pressed, this, &ACPPBaseCharacter::AddToInventory);
 }
 
 void ACPPBaseCharacter::StartMultiTrace()
 {
-	MultiSphreTrace();
+	GetWorld()->GetTimerManager().SetTimer(MultiSphereTraceTimer, this, &ACPPBaseCharacter::MultiSphereTrace, 0.2,
+	                                       true);
 }
 
 void ACPPBaseCharacter::EndMultiTrace()
 {
+	GetWorld()->GetTimerManager().ClearTimer(MultiSphereTraceTimer);
 }
 
 void ACPPBaseCharacter::PickupLineTrace()
@@ -84,14 +91,17 @@ void ACPPBaseCharacter::LineTrace()
 		{
 			if (IsValid(Hit.GetActor()))
 			{
-				if (ItemRef != Hit.GetActor())
+				if (ItemActorRef != Hit.GetActor())
 				{
 					IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(Hit.Actor);
 					if (GameplayTagsInterface)
 					{
 						if (GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection))
 						{
-							ABoxCollectionItem* castingItem = Cast<ABoxCollectionItem>(Hit.Actor);
+							//Don't have to cast it everytime, create some tags that decribe what type of pickup it is
+							//and then cast it when it is going to inventory cause casting here is not needed
+							//also create gameplaytags system for which item exist in the inventory and which exist in the itemref/multiitemref
+							IBoxItemInterface* castingItem = Cast<IBoxItemInterface>(Hit.Actor);
 							if (castingItem)
 							{
 								BoxItemRef = castingItem;
@@ -103,26 +113,17 @@ void ACPPBaseCharacter::LineTrace()
 						}
 						else
 						{
-							AMasterItem* castingItem = Cast<AMasterItem>(Hit.Actor);
+							IBaseItemInterface* castingItem = Cast<IBaseItemInterface>(Hit.Actor);
 							if (castingItem)
 							{
 								ItemRef = castingItem;
+								ItemActorRef = Hit.Actor;
 								ItemRef->EnableWidgetVisibility(this);
-
-								if (IsValid(ItemRef))
-								{
-									if (GEngine)
-									{
-										GEngine->AddOnScreenDebugMessage(-1, 5, FColor::Black,
-										                                 " testing");
-									}
-
-									ServerItemAddPawn(ItemRef, PlayerControllerRef);
-								}
 							}
 							else
 							{
 								ItemRef = nullptr;
+								ItemActorRef = nullptr;
 							}
 						}
 					}
@@ -130,10 +131,10 @@ void ACPPBaseCharacter::LineTrace()
 			}
 			else
 			{
-				if (IsValid(ItemRef))
+				if (ItemRef != nullptr)
 				{
 					ItemRef->DisableWidgetVisibility(this);
-					ServerItemRemovePawn(ItemRef, PlayerControllerRef);
+					//ServerItemRemovePawn(ItemRef, PlayerControllerRef);
 					ItemRef = nullptr;
 				}
 			}
@@ -141,7 +142,7 @@ void ACPPBaseCharacter::LineTrace()
 	}
 	else
 	{
-		if (IsValid(ItemRef))
+		if (ItemRef != nullptr)
 		{
 			ItemRef->DisableWidgetVisibility(this);
 			//ServerItemRemovePawn(ItemRef);
@@ -150,10 +151,8 @@ void ACPPBaseCharacter::LineTrace()
 	}
 }
 
-void ACPPBaseCharacter::MultiSphreTrace()
+void ACPPBaseCharacter::MultiSphereTrace()
 {
-	MultiItemRef.Empty();
-
 	// create tarray for hit results
 	TArray<FHitResult> OutHits;
 
@@ -173,19 +172,93 @@ void ACPPBaseCharacter::MultiSphreTrace()
 
 	if (isHit)
 	{
-		// loop through TArray
-		for (auto& Hit : OutHits)
+		if (HitResultArrayToCompare.Num() > 0)
 		{
-			IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(Hit.Actor);
-			if (GameplayTagsInterface)
+			if (HitResultArrayToCompare.Num() == OutHits.Num())
 			{
-				if (!(GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection)))
+				MultiItemRef.Empty();
+				//HitResultArrayToCompare.Empty();
+
+				bool ArrayNotMatch = false;
+				TArray<AActor*> LocalActorListFromTrace;
+				// loop through TArray
+				for (int32 i = 0; i < OutHits.Num(); i++)
 				{
-					AMasterItem* castingItem = Cast<AMasterItem>(Hit.Actor);
-					if (castingItem && IsValid(castingItem))
+					if (!(HitResultArrayToCompare.Contains(OutHits[i].GetActor())))
 					{
-						MultiItemRef.Add(castingItem);
-						ServerItemAddPawn(castingItem, PlayerControllerRef);
+						IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(
+							OutHits[i].Actor);
+						if (GameplayTagsInterface)
+						{
+							if (!(GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection)))
+							{
+								//No Need, but the single trace has to be cast in order to display widget to the character
+								IMasterItemInterface* castingItem = Cast<IMasterItemInterface>(OutHits[i].Actor);
+								if (castingItem)
+								{
+									MultiItemRef.Add(castingItem);
+									LocalActorListFromTrace.Add(OutHits[i].GetActor());
+									ArrayNotMatch = true;
+								}
+							}
+						}
+						
+					}
+
+				}
+
+				if (ArrayNotMatch)
+				{
+					PCInterfaceRef->RefreshInventory();
+					HitResultArrayToCompare = LocalActorListFromTrace;
+				}
+			}
+			else
+			{
+				MultiItemRef.Empty();
+				HitResultArrayToCompare.Empty();
+
+				// loop through TArray
+				for (int32 i = 0; i < OutHits.Num(); i++)
+				{
+					IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(
+						OutHits[i].Actor);
+					if (GameplayTagsInterface)
+					{
+						if (!(GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection)))
+						{
+							//No Need, but the single trace has to be cast in order to display widget to the character
+							IMasterItemInterface* castingItem = Cast<IMasterItemInterface>(OutHits[i].Actor);
+							if (castingItem)
+							{
+								MultiItemRef.Add(castingItem);
+								HitResultArrayToCompare.Add(OutHits[i].GetActor());
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			MultiItemRef.Empty();
+			HitResultArrayToCompare.Empty();
+
+			// loop through TArray
+			for (auto& Hit : OutHits)
+			{
+				IGameplayTagAssetInterface* GameplayTagsInterface = Cast<IGameplayTagAssetInterface>(Hit.Actor);
+				if (GameplayTagsInterface)
+				{
+					if (!(GameplayTagsInterface->HasMatchingGameplayTag(BoxCollection)))
+					{
+						//No Need, but the single trace has to be cast in order to display widget to the character
+						IMasterItemInterface* castingItem = Cast<IMasterItemInterface>(Hit.Actor);
+						if (castingItem)
+						{
+							MultiItemRef.Add(castingItem);
+							HitResultArrayToCompare.Add(Hit.GetActor());
+						}
 					}
 				}
 			}
@@ -208,32 +281,32 @@ void ACPPBaseCharacter::DestroyPickupItem_Implementation(AMasterItem* itemRefPar
 	itemRefParam->DestroyItem();
 }
 
-bool ACPPBaseCharacter::ServerItemAddPawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
+bool ACPPBaseCharacter::ServerItemAddPawn_Validate(AMasterItem* itemRefParam)
 {
-	if (IsValid(itemRefParam) && IsValid(PCRefParam))
+	if (IsValid(itemRefParam))
 	{
 		return true;
 	}
 	return false;
 }
 
-void ACPPBaseCharacter::ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
+void ACPPBaseCharacter::ServerItemAddPawn_Implementation(AMasterItem* itemRefParam)
 {
-	itemRefParam->ServerAddPawnRef(PCRefParam);
+	//itemRefParam->ServerAddPawnRef(PCRefParam);
 }
 
-bool ACPPBaseCharacter::ServerItemRemovePawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
+bool ACPPBaseCharacter::ServerItemRemovePawn_Validate(AMasterItem* itemRefParam)
 {
-	if (IsValid(itemRefParam) && IsValid(PCRefParam))
+	if (IsValid(itemRefParam))
 	{
 		return true;
 	}
 	return false;
 }
 
-void ACPPBaseCharacter::ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam)
+void ACPPBaseCharacter::ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam)
 {
-	itemRefParam->ServerRemovePawnRef(PCRefParam);
+	//itemRefParam->ServerRemovePawnRef(PCRefParam);
 }
 
 void ACPPBaseCharacter::CheckForGroundTrace(FVector& End, bool& bIsHit, FVector& SpawnVectorParam)
@@ -285,7 +358,7 @@ float ACPPBaseCharacter::CalculateCurrentWeight()
 
 void ACPPBaseCharacter::CalledWhenPossessedIsCalled(AController* NewController)
 {
-	PlayerControllerRef = Cast<ACPPPlayerController>(NewController);
+	PlayerControllerRef = Cast<ACPPPlayerController>(UGameplayStatics::GetPlayerController(GetWorld(), 0));
 }
 
 void ACPPBaseCharacter::TakeMasterItem(AMasterItem* MasterItemRefParam)
@@ -312,12 +385,10 @@ bool ACPPBaseCharacter::AddItemToInventory(const FItemData& ItemDataParam)
 			}
 			return true;
 		}
-		else
-		{
-			Inventory.Add(ItemDataParam);
-			CurrentWeight = CalculateCurrentWeight();
-			return true;
-		}
+
+		Inventory.Add(ItemDataParam);
+		CurrentWeight = CalculateCurrentWeight();
+		return true;
 	}
 
 	return false;
@@ -339,6 +410,16 @@ bool ACPPBaseCharacter::StackableItemExist(const FText& ItemNameParam, int32& In
 void ACPPBaseCharacter::IncreaseAmountOnStackedItem(const FItemData& ItemDataParam, int32& IndexNumParam)
 {
 	Inventory[IndexNumParam].IncreaseAmount(ItemDataParam.Amount);
+}
+
+bool ACPPBaseCharacter::CheckIfBoxCollectionIsNotNull() const
+{
+	if (BoxItemRef != nullptr)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void ACPPBaseCharacter::DestroyMasterItem(AMasterItem* MasterItemParam)
@@ -422,17 +503,63 @@ void ACPPBaseCharacter::DropBoxCollectionItem(const FItemData& ItemDataParam)
 {
 }
 
+bool ACPPBaseCharacter::ItemExistInMultiRef(IMasterItemInterface* MasterItemInterfaceParam) const
+{
+	if (MultiItemRef.Contains(MasterItemInterfaceParam))
+	{
+		return true;
+	}
+	return false;
+}
+
+void ACPPBaseCharacter::RemoveFromMultiItemRef(IMasterItemInterface* MasterItemInterfaceParam)
+{
+	MultiItemRef.Remove(MasterItemInterfaceParam);
+
+	PCInterfaceRef->RefreshInventory();
+}
+
+void ACPPBaseCharacter::ReScanMultiItemRef()
+{
+	MultiSphereTrace();
+}
+
+void ACPPBaseCharacter::DeleteNonValidReferenceFromMultiItemRef()
+{
+	//Probably just send that object reference to this function to delete the reference
+}
+
 void ACPPBaseCharacter::AddToInventory()
 {
-	if (IsValid(ItemRef))
+	if (ItemActorRef != nullptr)
 	{
-		Inventory.Add(ItemRef->GetItemData());
-
-		for (FItemData Data : Inventory)
+		AMasterItem* ItemToBeAdded = Cast<AMasterItem>(ItemActorRef);
+		const FItemData ItemRefData = ItemToBeAdded->GetItemData();
+		//GEngine->AddOnScreenDebugMessage(-1, 4, FColor::Black, "Is this even called");
+		if ((CurrentWeight + (ItemRefData.Amount * ItemRefData.Weight)) <= MaxWeight)
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 10, FColor::Black, Data.Name.ToString());
+			if (ItemRefData.bIsStackable)
+			{
+				int32 IndexNum;
+				if (StackableItemExist(ItemRefData.Name, IndexNum))
+				{
+					//GEngine->AddOnScreenDebugMessage(-1, 4, FColor::Black, "Stack");
+					IncreaseAmountOnStackedItem(ItemRefData, IndexNum);
+					DestroyMasterItem(ItemToBeAdded);
+				}
+				else
+				{
+					Inventory.Add(ItemRefData);
+					CurrentWeight = CalculateCurrentWeight();
+					DestroyMasterItem(ItemToBeAdded);
+				}
+			}
+			else
+			{
+				Inventory.Add(ItemRefData);
+				CurrentWeight = CalculateCurrentWeight();
+				DestroyMasterItem(ItemToBeAdded);
+			}
 		}
-
-		DestroyPickupItem(ItemRef);
 	}
 }

@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "FPSGravityShooterCPP/Interfaces/CharacterInterface.h"
+
 #include "CPPMainInvetoryWidget.generated.h"
 
 class ACPPPlayerController;
@@ -30,12 +32,12 @@ public:
 	UFUNCTION()
 	void BuildGroundItems();
 
-	ACPPBaseCharacter* GetPawnRef() const
+	ICharacterInterface* GetPawnRef() const
 	{
 		return PawnRef;
 	}
 
-	void SetPawnRef(ACPPBaseCharacter* PawnRefParam)
+	void SetPawnRef(ICharacterInterface* PawnRefParam)
 	{
 		this->PawnRef = PawnRefParam;
 	}
@@ -43,16 +45,6 @@ public:
 	void SetPawnRefToNullptr()
 	{
 		this->PawnRef = nullptr;
-	}
-
-	ACPPPlayerController* GetPCRef() const
-	{
-		return PCRef;
-	}
-
-	void SetPCRef(ACPPPlayerController* PCRefParam)
-	{
-		this->PCRef = PCRefParam;
 	}
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
@@ -75,9 +67,5 @@ protected:
 	TSubclassOf<class UGroundBoxSlot> GroundBoxSlotClassRef;
 
 private:
-	UPROPERTY()
-	ACPPBaseCharacter* PawnRef;
-
-	UPROPERTY()
-	ACPPPlayerController* PCRef;
+	ICharacterInterface* PawnRef;
 };

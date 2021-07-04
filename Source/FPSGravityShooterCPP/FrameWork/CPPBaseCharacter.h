@@ -7,6 +7,8 @@
 #include "GameplayTagContainer.h"
 #include "GameFramework/Character.h"
 #include "FPSGravityShooterCPP/Interfaces/CharacterInterface.h"
+#include "FPSGravityShooterCPP/Interfaces/MasterItemInterface.h"
+#include "FPSGravityShooterCPP/Interfaces/PlayerControllerInterface.h"
 #include "FPSGravityShooterCPP/Inventory/BoxCollectionItem.h"
 #include "FPSGravityShooterCPP/Inventory/MasterItem.h"
 #include "CPPBaseCharacter.generated.h"
@@ -58,14 +60,19 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void AddToInventory();
 
-	UFUNCTION(BlueprintCallable)
-	void MultiSphreTrace();
+	UFUNCTION()
+	void MultiSphereTrace();
 
 	UPROPERTY()
 	ACPPPlayerController* PlayerControllerRef;
 
+	IPlayerControllerInterface* PCInterfaceRef;
+
 	UFUNCTION(BlueprintCallable)
 	void CalledWhenPossessedIsCalled(AController* NewController);
+
+	UPROPERTY(BlueprintReadWrite)
+	bool bDead = false;
 
 public:
 	// Called every frame
@@ -84,15 +91,15 @@ public:
 	FGameplayTagContainer GameplayTags;
 
 	UFUNCTION()
-	virtual void RefreshInventoryInterface() override;
-
-	UFUNCTION()
 	virtual void StartMultiTrace() override;
 
 	UFUNCTION()
 	virtual void EndMultiTrace() override;
 
 private:
+	UPROPERTY()
+	FTimerHandle MultiSphereTraceTimer;
+
 	class UCameraComponent* CameraComponentRef;
 
 	class USpringArmComponent* SpringArmComponentRef;
@@ -105,23 +112,27 @@ private:
 	bool DestroyPickupItem_Validate(AMasterItem* itemRefParam);
 	void DestroyPickupItem_Implementation(AMasterItem* itemRefParam);
 
-	AMasterItem* ItemRef;
+	IBaseItemInterface* ItemRef;
 
-	ABoxCollectionItem* BoxItemRef;
+	TWeakObjectPtr<AActor> ItemActorRef;
+
+	IBoxItemInterface* BoxItemRef;
 
 	TArray<FItemData> Inventory;
 
-	TArray<AMasterItem*> MultiItemRef;
+	TArray<IMasterItemInterface*> MultiItemRef;
+
+	TArray<AActor*> HitResultArrayToCompare;
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerItemAddPawn(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
-	bool ServerItemAddPawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
-	void ServerItemAddPawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+	void ServerItemAddPawn(AMasterItem* itemRefParam);
+	bool ServerItemAddPawn_Validate(AMasterItem* itemRefParam);
+	void ServerItemAddPawn_Implementation(AMasterItem* itemRefParam);
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerItemRemovePawn(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
-	bool ServerItemRemovePawn_Validate(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
-	void ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam, ACPPPlayerController* PCRefParam);
+	void ServerItemRemovePawn(AMasterItem* itemRefParam);
+	bool ServerItemRemovePawn_Validate(AMasterItem* itemRefParam);
+	void ServerItemRemovePawn_Implementation(AMasterItem* itemRefParam);
 
 	//
 	//
@@ -143,7 +154,24 @@ private:
 	void IncreaseAmountOnStackedItem(const FItemData& ItemDataParam, int32& IndexNumParam);
 
 public:
-	const float& GetCurrentWeight() const
+	virtual bool CheckIfBoxCollectionIsNotNull() const override;
+
+	virtual bool GetbDead() const override
+	{
+		return bDead;
+	}
+
+	virtual void SetbDead(bool bDeadParam) override
+	{
+		this->bDead = bDeadParam;
+	}
+
+	virtual IBoxItemInterface* GetBoxItemRef() const override
+	{
+		return BoxItemRef;
+	}
+
+	virtual const float& GetCurrentWeight() const override
 	{
 		return CurrentWeight;
 	}
@@ -153,7 +181,7 @@ public:
 		this->CurrentWeight = CurrentWeightParam;
 	}
 
-	const float& GetMaxWeight() const
+	virtual const float& GetMaxWeight() const override
 	{
 		return MaxWeight;
 	}
@@ -163,17 +191,17 @@ public:
 		this->MaxWeight = MaxWeightParam;
 	}
 
-	TArray<AMasterItem*> GetMultiItemRef() const
+	virtual const TArray<IMasterItemInterface*>& GetMultiItemRef() const override
 	{
 		return MultiItemRef;
 	}
 
-	void SetMultiItemRef(const TArray<AMasterItem*>& MultiItemRefParam)
+	void SetMultiItemRef(const TArray<IMasterItemInterface*>& MultiItemInterfaceRefParam)
 	{
-		this->MultiItemRef = MultiItemRefParam;
+		this->MultiItemRef = MultiItemInterfaceRefParam;
 	}
 
-	const TArray<FItemData>& GetInventory() const
+	virtual const TArray<FItemData>& GetInventory() const override
 	{
 		return Inventory;
 	}
@@ -184,7 +212,7 @@ public:
 	}
 
 	UFUNCTION()
-	void TakeMasterItem(AMasterItem* MasterItemRefParam);
+	virtual void TakeMasterItem(AMasterItem* MasterItemRefParam) override;
 
 	UFUNCTION()
 	bool AddItemToInventory(const FItemData& ItemDataParam);
@@ -199,11 +227,19 @@ public:
 
 	void RebuildInventoryWidget();
 
-	void RemoveItemFromInventory(const int32& IndexNumParam);
+	virtual void RemoveItemFromInventory(const int32& IndexNumParam) override;
 
-	void DropMasterItem(const FItemData& ItemDataParam);
+	virtual void DropMasterItem(const FItemData& ItemDataParam) override;
 
-	void DropBoxCollectionItem(const FItemData& ItemDataParam);
+	virtual void DropBoxCollectionItem(const FItemData& ItemDataParam) override;
+
+	virtual bool ItemExistInMultiRef(IMasterItemInterface* MasterItemInterfaceParam) const override;
+
+	virtual void RemoveFromMultiItemRef(IMasterItemInterface* MasterItemInterfaceParam) override;
+
+	virtual void ReScanMultiItemRef() override;
+
+	virtual void DeleteNonValidReferenceFromMultiItemRef() override;
 
 	float CalculateCurrentWeight();
 };

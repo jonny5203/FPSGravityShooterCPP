@@ -12,8 +12,7 @@
 
 void UCPPMainInvetoryWidget::NativeConstruct()
 {
-	PawnRef = Cast<ACPPBaseCharacter>(GetOwningPlayerPawn());
-	PCRef = Cast<ACPPPlayerController>(GetOwningPlayer());
+	PawnRef = Cast<ICharacterInterface>(GetOwningPlayerPawn());
 
 	BuildInventory();
 	BuildGroundItems();
@@ -37,7 +36,6 @@ void UCPPMainInvetoryWidget::BuildInventory()
 		slot->SetNameText();
 		slot->SetItemAmountText();
 		slot->SetPawnRef(PawnRef);
-		slot->SetPCRef(PCRef);
 		slot->SetIndexNum(InventoryIndexNum);
 		slot->SetToolTipWidget();
 		InventoryItemContainer->AddChild(slot);
@@ -56,7 +54,7 @@ void UCPPMainInvetoryWidget::BuildGroundItems()
 {
 	GroundItemContainer->ClearChildren();
 
-	for (AMasterItem* Ref : PawnRef->GetMultiItemRef())
+	for (IMasterItemInterface* Ref : PawnRef->GetMultiItemRef())
 	{
 		const FItemData& item = Ref->GetItemData();
 
@@ -66,7 +64,6 @@ void UCPPMainInvetoryWidget::BuildGroundItems()
 		slot->SetItemAmountText();
 		slot->SetPawnRef(PawnRef);
 		slot->SetMasterItemRef(Ref);
-		slot->SetPCRef(PCRef);
 		slot->SetToolTipWidget();
 		GroundItemContainer->AddChild(slot);
 	}

@@ -4,8 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "GameplayTagAssetInterface.h"
+#include "FPSGravityShooterCPP/Interfaces/BaseItemInterface.h"
 #include "GameFramework/Actor.h"
 #include "CPPBaseItem.generated.h"
+
+
+/// <summary>
+/// Create gameplay tags that gives information to the player and then to the widget so that I don't have to cast, should only cast it when you use it
+/// </summary>
 
 class ACPPPlayerController;
 UENUM(BlueprintType)
@@ -76,7 +82,8 @@ struct FItemData
 class ACPPBaseCharacter;
 
 UCLASS(BlueprintType)
-class FPSGRAVITYSHOOTERCPP_API ACPPBaseItem : public AActor, public IGameplayTagAssetInterface
+class FPSGRAVITYSHOOTERCPP_API ACPPBaseItem : public AActor, public IGameplayTagAssetInterface,
+                                              public IBaseItemInterface
 {
 	GENERATED_BODY()
 
@@ -111,11 +118,11 @@ public:
 
 	/** called when something enters the sphere component */
 	UFUNCTION()
-	void DisableWidgetVisibility(ACPPBaseCharacter* PawnRef);
+	virtual void DisableWidgetVisibility(ACPPBaseCharacter* PawnRef) override;
 
 	/** called when something leaves the sphere component */
 	UFUNCTION()
-	void EnableWidgetVisibility(ACPPBaseCharacter* PawnRef);
+	virtual void EnableWidgetVisibility(ACPPBaseCharacter* PawnRef) override;
 
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerAddPawnRef(ACPPPlayerController* PCRefParam);
@@ -130,8 +137,6 @@ public:
 protected:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	bool bActivatedWidget;
-
 	UFUNCTION()
 	void SetWidgetVisibility();
 
@@ -143,8 +148,4 @@ protected:
 
 	UPROPERTY(Replicated)
 	TArray<ACPPPlayerController*> PCRefList;
-
-	UFUNCTION(Server, Reliable)
-	virtual void RefreshList();
-	virtual void RefreshList_Implementation();
 };

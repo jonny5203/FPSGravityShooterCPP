@@ -6,6 +6,7 @@
 #include "UObject/Interface.h"
 #include "BaseItemInterface.generated.h"
 
+class ACPPBaseCharacter;
 // This class does not need to be modified.
 UINTERFACE(MinimalAPI)
 class UBaseItemInterface : public UInterface
@@ -22,4 +23,7 @@ class FPSGRAVITYSHOOTERCPP_API IBaseItemInterface
 
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
+	virtual void EnableWidgetVisibility(ACPPBaseCharacter* BaseCharacterParam) = 0;
+
+	virtual void DisableWidgetVisibility(ACPPBaseCharacter* BaseCharacterParam) = 0;
 };

@@ -15,6 +15,6 @@ void UItemSlot::DropItem()
 {
 	//Spawn a new item on the map and delete the references of the item in the characters inventory
 	//PawnRef->RemoveItemFromInventory(IndexNum);
-	PCRef->RefreshInventoryMasterItemDrop(IndexNum, ItemData);
+	//PCRef->RefreshInventoryMasterItemDrop(IndexNum, ItemData);
 	//PawnRef->DropMasterItem(ItemData);
 }

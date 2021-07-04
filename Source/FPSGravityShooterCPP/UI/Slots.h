@@ -7,8 +7,10 @@
 #include "Components/TextBlock.h"
 #include "FPSGravityShooterCPP/Inventory/CPPBaseItem.h"
 #include "Components/TextBlock.h"
+#include "FPSGravityShooterCPP/Interfaces/CharacterInterface.h"
 #include "Slots.generated.h"
 
+class IMasterItemInterface;
 class ACPPPlayerController;
 class UTextBlock;
 class UHoverWidget;
@@ -29,14 +31,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	UTextBlock* ItemAmountText;
 
-	UPROPERTY()
-	ACPPBaseCharacter* PawnRef;
+	ICharacterInterface* PawnRef;
 
-	UPROPERTY()
-	class AMasterItem* MasterItemRef;
-
-	UPROPERTY()
-	ACPPPlayerController* PCRef;
+	IMasterItemInterface* MasterItemRef;
 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UHoverWidget> HoverWidgetClassRef;
@@ -46,22 +43,12 @@ public:
 	
 	void SetItemAmountText();
 
-	ACPPPlayerController* GetPCRef() const
-	{
-		return PCRef;
-	}
-
-	void SetPCRef(ACPPPlayerController* PCRefParam)
-	{
-		this->PCRef = PCRefParam;
-	}
-
-	ACPPBaseCharacter* GetPawnRef() const
+	const ICharacterInterface* GetPawnRef() const
 	{
 		return PawnRef;
 	}
 
-	void SetPawnRef(ACPPBaseCharacter* PawnRefParam)
+	void SetPawnRef(ICharacterInterface* PawnRefParam)
 	{
 		this->PawnRef = PawnRefParam;
 	}
@@ -76,12 +63,12 @@ public:
 		ItemData = itemDataObject;
 	}
 
-	AMasterItem* GetMasterItemRef() const
+	const IMasterItemInterface* GetMasterItemRef() const
 	{
 		return MasterItemRef;
 	}
 
-	void SetMasterItemRef(AMasterItem* MasterItemRefParam)
+	void SetMasterItemRef(IMasterItemInterface* MasterItemRefParam)
 	{
 		this->MasterItemRef = MasterItemRefParam;
 	}

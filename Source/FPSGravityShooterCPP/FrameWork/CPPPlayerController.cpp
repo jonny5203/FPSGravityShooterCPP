@@ -22,22 +22,36 @@ ACPPPlayerController::ACPPPlayerController()
 
 void ACPPPlayerController::RefreshInventoryMasterItemTake(AMasterItem* MasterItemRefParam)
 {
-	if (IsValid(PawnRef))
+	//I should create a gameplaytags system to let others know if inventory is occupied or not or if itemref/multiitemref is currently occupied or not
+	//if item exist in inventory or not, if spesific items exist within itemref/multiitemref or not
+	//Also make gameplay tags that singifies if inventory is full or not
+	//Gameplay tags for if maininventorywidgeteref exist at all
+	//Gameplay tags that writes in the object ID so that I don't have to call anything to see if this should controller should be called when multicasting
+	
+	if (GetCharacter())
 	{
 		PawnRef->TakeMasterItem(MasterItemRefParam);
 	}
 	else
 	{
-		ACPPBaseCharacter* castingPawn = Cast<ACPPBaseCharacter>(GetCharacter());
+		ICharacterInterface* castingPawn = Cast<ICharacterInterface>(GetCharacter());
 		if (castingPawn)
 		{
-			PawnRef = castingPawn;
-			PawnRef->TakeMasterItem(MasterItemRefParam);
+			PawnInterfaceRef = castingPawn;
+			PawnInterfaceRef->TakeMasterItem(MasterItemRefParam);
 		}
 	}
-	
-	MainInventoryWidgetRef->BuildInventory();
-	MainInventoryWidgetRef->BuildGroundItems();
+
+	if (IsValid(MainInventoryWidgetRef))
+	{
+		if (!bIsInInventory)
+		{
+			MainInventoryWidgetRef->BuildInventory();
+			MainInventoryWidgetRef->BuildGroundItems();
+		}
+
+	}
+
 }
 
 void ACPPPlayerController::RefreshInventoryMasterItemDrop(int32 IndexNumParam, const FItemData& ItemDataParam)
@@ -66,36 +80,87 @@ void ACPPPlayerController::RefreshInventoryMasterItemDrop(int32 IndexNumParam, c
 
 void ACPPPlayerController::ResetPawnRef()
 {
-	PawnRef = nullptr;
+	PawnInterfaceRef = nullptr;
+}
+
+void ACPPPlayerController::SetPawnInterfaceRef()
+{
+	PawnInterfaceRef = Cast<ICharacterInterface>(GetCharacter());
+}
+
+void ACPPPlayerController::RefreshInventory()
+{
+	if (IsValid(MainInventoryWidgetRef))
+	{
+		if (bIsInInventory == false)
+		{
+			MainInventoryWidgetRef->BuildInventory();
+			MainInventoryWidgetRef->BuildGroundItems();
+		}
+	}
 }
 
 void ACPPPlayerController::OpenInventory()
 {
+	//Do another check for if the player is dead or not
 	if (bIsInInventory)
 	{
 		if (IsValid(MainInventoryWidgetRef))
 		{
-			Cast<ICharacterInterface>(GetCharacter())->StartMultiTrace();
+			if (IsValid(PawnRef))
+			{
+				PawnRef->StartMultiTrace();
+				MainInventoryWidgetRef->SetVisibility(ESlateVisibility::Visible);
 
-			MainInventoryWidgetRef->SetVisibility(ESlateVisibility::Visible);
+				SetShowMouseCursor(true);
+				UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
+				bIsInInventory = !bIsInInventory;
 
-			SetShowMouseCursor(true);
-			UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
-			bIsInInventory = !bIsInInventory;
+				MainInventoryWidgetRef->BuildInventory();
+				MainInventoryWidgetRef->BuildGroundItems();
+			}
+			else
+			{
+				PawnRef = Cast<ACPPBaseCharacter>(GetCharacter());
+				PawnRef->StartMultiTrace();
 
-			MainInventoryWidgetRef->BuildInventory();
-			MainInventoryWidgetRef->BuildGroundItems();
+				MainInventoryWidgetRef->SetVisibility(ESlateVisibility::Visible);
+
+				SetShowMouseCursor(true);
+				UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
+				bIsInInventory = !bIsInInventory;
+
+				MainInventoryWidgetRef->BuildInventory();
+				MainInventoryWidgetRef->BuildGroundItems();
+			}
+
 		}
 		else
 		{
-			Cast<ICharacterInterface>(GetCharacter())->StartMultiTrace();
+			if (IsValid(PawnRef))
+			{
+				PawnRef->StartMultiTrace();
 
-			MainInventoryWidgetRef = CreateWidget<UCPPMainInvetoryWidget>(this, MainInventoryClassRef);
-			MainInventoryWidgetRef->AddToViewport();
+				MainInventoryWidgetRef = CreateWidget<UCPPMainInvetoryWidget>(this, MainInventoryClassRef);
+				MainInventoryWidgetRef->AddToViewport();
 
-			SetShowMouseCursor(true);
-			UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
-			bIsInInventory = !bIsInInventory;
+				SetShowMouseCursor(true);
+				UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
+				bIsInInventory = !bIsInInventory;
+			}
+			else
+			{
+				PawnRef = Cast<ACPPBaseCharacter>(GetCharacter());
+				PawnRef->StartMultiTrace();
+
+				MainInventoryWidgetRef = CreateWidget<UCPPMainInvetoryWidget>(this, MainInventoryClassRef);
+				MainInventoryWidgetRef->AddToViewport();
+
+				SetShowMouseCursor(true);
+				UWidgetBlueprintLibrary::SetInputMode_GameAndUIEx(this, MainInventoryWidgetRef);
+				bIsInInventory = !bIsInInventory;
+			}
+
 		}
 	}
 	else

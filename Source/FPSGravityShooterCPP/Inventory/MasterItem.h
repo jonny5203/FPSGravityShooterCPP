@@ -4,13 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "CPPBaseItem.h"
+#include "FPSGravityShooterCPP/Interfaces/MasterItemInterface.h"
 #include "MasterItem.generated.h"
 
 /**
  *
  */
 UCLASS()
-class FPSGRAVITYSHOOTERCPP_API AMasterItem : public ACPPBaseItem
+class FPSGRAVITYSHOOTERCPP_API AMasterItem : public ACPPBaseItem, public IMasterItemInterface
 {
 	GENERATED_BODY()
 
@@ -27,9 +28,9 @@ public:
 	void MulticastDestroyItem();
 	void MulticastDestroyItem_Implementation();
 
-	void DestroyItem();
+	virtual void DestroyItem() override;
 
-	FItemData GetItemData() const
+	virtual FItemData GetItemData() const override
 	{
 		return ItemData;
 	}
@@ -44,4 +45,7 @@ protected:
 
 	UPROPERTY(Replicated, EditDefaultsOnly)
 	FItemData ItemData;
+
+	UPROPERTY(EditDefaultsOnly)
+	FGameplayTag WhichItem;
 };
